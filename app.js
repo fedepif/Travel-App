@@ -171,8 +171,8 @@ const DEFAULT_EXPENSES = [
   { id: "e9",  desc: "Alloggio Siviglia – 3 notti (Booking)", amount: 384, paidBy: "Robi", participants: PEOPLE, category: "alloggio", date: "2026-04-30", preloaded: true },
   { id: "e10", desc: "Mezquita-Catedral Cordoba x4", amount: 128, paidBy: "Robi", participants: PEOPLE, category: "ingresso", date: "2026-05-03", preloaded: true },
   { id: "e11", desc: "Alloggio Cordoba (Booking)", amount: 92, paidBy: "Robi", participants: PEOPLE, category: "alloggio", date: "2026-05-03", preloaded: true },
-  { id: "e12", desc: "Treno Barcellona→Valencia andata (Federico+Giulia)", amount: 39.30, paidBy: "Federico", participants: ["Federico","Giulia"], category: "trasporto", date: "2026-04-25", preloaded: true },
-  { id: "e13", desc: "Treno Valencia→Barcellona ritorno (Federico+Giulia)", amount: 33.60, paidBy: "Federico", participants: ["Federico","Giulia"], category: "trasporto", date: "2026-05-05", preloaded: true },
+  { id: "e12", desc: "Treno Barcellona→Valencia andata (Federico+Giulia)", amount: 78.60, paidBy: "Federico", participants: ["Federico","Giulia"], category: "trasporto", date: "2026-04-25", preloaded: true, linkedSegmentIdx: 0 },
+  { id: "e13", desc: "Treno Valencia→Barcellona ritorno (Federico+Giulia)", amount: 67.20, paidBy: "Federico", participants: ["Federico","Giulia"], category: "trasporto", date: "2026-05-05", preloaded: true },
 ];
 
 const STORAGE_VERSION = "v3";
@@ -203,32 +203,48 @@ function initDefaultSegments() {
       editState.segments[i] = { method: "car", departureTime: "", arrivalTime: "", cost: 0, paidBy: "Federico", participants: [...PEOPLE] };
     }
   }
-  // Segment 0: Barcelona→Valencia train (Federico+Giulia)
-  if (!editState.segments[0] || editState.segments[0].method === "car") {
-    editState.segments[0] = { method: "train", departureTime: "08:15", arrivalTime: "11:20", cost: 39.30, paidBy: "Federico", participants: ["Federico","Giulia"] };
+  // Segment 0: Barcelona→Valencia train (Federico+Giulia) — only set if not already customized
+  if (editState.segments[0] && editState.segments[0].method === "car" && !editState.segments[0]._customized) {
+    editState.segments[0] = { method: "train", departureTime: "08:15", arrivalTime: "11:20", cost: 78.60, paidBy: "Federico", participants: ["Federico","Giulia"] };
   }
 }
 
 function loadExpenses() {
   try {
-    if (localStorage.getItem("andalusia2026_version") !== STORAGE_VERSION) {
-      localStorage.removeItem("andalusia2026_expenses");
-      localStorage.removeItem("andalusia2026_edits");
-      localStorage.setItem("andalusia2026_version", STORAGE_VERSION);
-    }
     const s = localStorage.getItem("andalusia2026_expenses");
-    expenses = s ? JSON.parse(s) : [...DEFAULT_EXPENSES];
+    // Only user-added (non-preloaded) expenses are persisted; defaults always come from DEFAULT_EXPENSES
+    const userSaved = s ? JSON.parse(s).filter(e => !e.preloaded) : [];
+    // Skip preloaded defaults whose segment is already covered by a user-saved expense
+    const coveredSegs = new Set(userSaved.map(e => e.linkedSegmentIdx).filter(x => x != null));
+    const activeDefaults = DEFAULT_EXPENSES.filter(e => e.linkedSegmentIdx == null || !coveredSegs.has(e.linkedSegmentIdx));
+    expenses = [...activeDefaults, ...userSaved];
   }
   catch { expenses = [...DEFAULT_EXPENSES]; }
 }
-function saveExpenses() { localStorage.setItem("andalusia2026_expenses", JSON.stringify(expenses)); }
+function saveExpenses() {
+  // Only persist user-added expenses; preloaded ones are always rebuilt from DEFAULT_EXPENSES
+  localStorage.setItem("andalusia2026_expenses", JSON.stringify(expenses.filter(e => !e.preloaded)));
+}
 
 function loadEditState() {
-  try { const s = localStorage.getItem("andalusia2026_edits"); if (s) editState = JSON.parse(s); }
+  try {
+    const s = localStorage.getItem("andalusia2026_edits");
+    if (s) {
+      const saved = JSON.parse(s);
+      // Version bump: reset only segments (preserve hotel addresses)
+      if (saved._version !== STORAGE_VERSION) {
+        editState = { segments: {}, hotels: saved.hotels || {} };
+      } else {
+        editState = saved;
+      }
+    }
+  }
   catch {}
   initDefaultSegments();
 }
-function saveEditState() { localStorage.setItem("andalusia2026_edits", JSON.stringify(editState)); }
+function saveEditState() {
+  localStorage.setItem("andalusia2026_edits", JSON.stringify({ ...editState, _version: STORAGE_VERSION }));
+}
 
 /* ═══════════════════════════════════════════════════
    TAB NAVIGATION
@@ -599,16 +615,18 @@ function toggleTransportForm(li, segIdx, dayNum) {
       cost:          parseFloat(form.querySelector(".tf-cost").value) || 0,
       paidBy:        form.querySelector(".tf-payer").value,
       participants,
+      _customized:   true,
     };
     saveEditState();
 
-    // Update expense entry for this segment
+    // Update expense entry for this segment (remove both seg_N and any linked preloaded default)
     const cost = editState.segments[segIdx].cost;
     const expId = `seg_${segIdx}`;
-    expenses = expenses.filter(e => e.id !== expId);
+    expenses = expenses.filter(e => e.id !== expId && e.linkedSegmentIdx !== segIdx);
     if (cost > 0) {
       expenses.push({
         id: expId,
+        linkedSegmentIdx: segIdx,
         desc: `Trasporto: ${SEGMENT_LABELS[segIdx]}`,
         amount: cost,
         paidBy: editState.segments[segIdx].paidBy,
