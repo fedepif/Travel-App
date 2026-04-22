@@ -471,6 +471,61 @@ async function geocodeAddress(address) {
 }
 
 /* ═══════════════════════════════════════════════════
+   WEATHER
+═══════════════════════════════════════════════════ */
+const weatherCache = {};
+
+function getDayLocation(dayNum) {
+  const stops = STOPS.filter(s => s.day <= dayNum);
+  return stops.length > 0 ? stops[stops.length - 1] : STOPS[0];
+}
+
+function wmoIcon(code) {
+  if (code === 0)  return "☀️";
+  if (code <= 2)   return "🌤️";
+  if (code === 3)  return "☁️";
+  if (code <= 48)  return "🌫️";
+  if (code <= 57)  return "🌦️";
+  if (code <= 67)  return "🌧️";
+  if (code <= 77)  return "❄️";
+  if (code <= 82)  return "🌦️";
+  return "⛈️";
+}
+
+async function fetchWeather(dayNum) {
+  if (weatherCache[dayNum] !== undefined) return weatherCache[dayNum];
+  const loc = getDayLocation(dayNum);
+  const day = DAYS.find(d => d.day === dayNum);
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=Europe/Madrid&start_date=${day.date}&end_date=${day.date}`;
+    const r = await fetch(url);
+    const data = await r.json();
+    if (data.daily?.weathercode?.length) {
+      weatherCache[dayNum] = {
+        max: data.daily.temperature_2m_max[0],
+        min: data.daily.temperature_2m_min[0],
+        precip: data.daily.precipitation_sum[0],
+        code: data.daily.weathercode[0],
+      };
+    } else {
+      weatherCache[dayNum] = null;
+    }
+  } catch { weatherCache[dayNum] = null; }
+  return weatherCache[dayNum];
+}
+
+async function loadAllWeather() {
+  await Promise.all(DAYS.map(async day => {
+    const w = await fetchWeather(day.day);
+    const el = document.getElementById(`weather-${day.day}`);
+    if (!el) return;
+    if (!w) { el.textContent = ""; return; }
+    const precip = w.precip > 0.2 ? ` 💧${Math.round(w.precip)}mm` : "";
+    el.innerHTML = `${wmoIcon(w.code)} <b>${Math.round(w.max)}°</b>/${Math.round(w.min)}°${precip}`;
+  }));
+}
+
+/* ═══════════════════════════════════════════════════
    DAILY COST TOTAL
 ═══════════════════════════════════════════════════ */
 function getDayTotal(day) {
@@ -527,6 +582,7 @@ function renderItinerary() {
         <div class="day-date">${day.label}</div>
         <div class="day-route">${day.route}</div>
       </div>
+      <div class="weather-chip" id="weather-${day.day}">⏳</div>
       ${totalStr}
       <div class="day-toggle">▼</div>
     `;
@@ -920,5 +976,6 @@ async function init() {
   initMap();
   mapInitialized = true;
   subscribeRealtime();
+  loadAllWeather();
 }
 init();
