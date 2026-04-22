@@ -5,6 +5,7 @@ const PEOPLE = ["Federico", "Manu", "Robi", "Giulia"];
 
 const STOPS = [
   { name: "Barcellona",             lat: 41.3851,  lng:  2.1734, day: 1  },
+  { name: "Valencia (transito)",    lat: 39.4699,  lng: -0.3763, day: 1  },
   { name: "Benidorm",               lat: 38.5409,  lng: -0.1319, day: 1  },
   { name: "Granada",                lat: 37.1773,  lng: -3.5986, day: 2  },
   { name: "Frigiliana",             lat: 36.7917,  lng: -3.9003, day: 4  },
@@ -18,9 +19,10 @@ const STOPS = [
   { name: "Valencia",               lat: 39.4699,  lng: -0.3763, day: 10 },
 ];
 
-// 11 segments between the 12 stops
+// 12 segments between the 13 stops
 const SEGMENT_LABELS = [
-  "Barcellona → Benidorm",
+  "Barcellona → Valencia (treno)",
+  "Valencia → Benidorm (auto)",
   "Benidorm → Granada",
   "Granada → Frigiliana",
   "Frigiliana → Nerja",
@@ -32,13 +34,15 @@ const SEGMENT_LABELS = [
   "Siviglia → Cordoba",
   "Cordoba → Valencia",
 ];
-const SEGMENT_DAY = [1, 2, 4, 4, 4, 5, 5, 5, 6, 9, 10];
+const SEGMENT_DAY = [1, 1, 2, 4, 4, 4, 5, 5, 5, 6, 9, 10];
 
 const DAYS = [
   {
     day: 1, date: "2026-04-25", label: "Sabato 25 Aprile", route: "Barcellona → Benidorm",
     activities: [
-      { time: "08:00", icon: "🚗", name: "Ritiro auto noleggio – Barcelona", type: "trasporto", segmentIdx: 0,
+      { time: "08:15", icon: "🚂", name: "Treno Barcellona → Valencia", type: "trasporto", segmentIdx: 0, note: "Arrivo Valencia 11:20 · Federico & Giulia" },
+      { time: "11:20", icon: "🏙️", name: "Arrivo a Valencia", type: "free" },
+      { time: "15:00", icon: "🚗", name: "Ritiro auto noleggio a Valencia", type: "trasporto", segmentIdx: 1,
         note: "Station Wagon – prenota ora (Pasqua = prezzi alti)", link: "https://drive.google.com/drive/u/0/folders/1MliR-xmBcYPVw0RnUAVJAO3n9mlgRI-G", linkLabel: "📁 Documenti" },
       { time: "17:00", icon: "🌅", name: "Balcón del Mediterráneo – tramonto", type: "free", confirmed: true, mapsQuery: "Balcon del Mediterraneo Benidorm" },
       { time: "20:30", icon: "🍽️", name: "Cena Benidorm – Rincon de Loix o centro", type: "cibo", estimatedCost: 20, note: "Tapas + menù del giorno" },
@@ -48,7 +52,7 @@ const DAYS = [
   {
     day: 2, date: "2026-04-26", label: "Domenica 26 Aprile", route: "Benidorm → Granada",
     activities: [
-      { time: "09:00", icon: "🚗", name: "Benidorm → Granada (A-92)", type: "trasporto", segmentIdx: 1, note: "~5h di guida" },
+      { time: "09:00", icon: "🚗", name: "Benidorm → Granada (A-92)", type: "trasporto", segmentIdx: 2, note: "~5h di guida" },
       { time: "15:00", icon: "🚶", name: "Albaicín – quartiere moresco", type: "free", confirmed: true, note: "Mirador de San Nicolás", mapsQuery: "Albaicin Granada" },
       { time: "20:00", icon: "🍺", name: "Tapas Calle Elvira / Plaza de Toros", type: "cibo", estimatedCost: 10, confirmed: true, note: "Granada unica: con 2-3 caña si cena con ~10€/testa" },
     ],
@@ -67,12 +71,12 @@ const DAYS = [
   {
     day: 4, date: "2026-04-28", label: "Martedì 28 Aprile", route: "Frigiliana → Nerja → Malaga",
     activities: [
-      { time: "09:00", icon: "🚗", name: "Granada → Frigiliana", type: "trasporto", segmentIdx: 2 },
+      { time: "09:00", icon: "🚗", name: "Granada → Frigiliana", type: "trasporto", segmentIdx: 3 },
       { time: "10:30", icon: "🚶", name: "Frigiliana – pueblo blanco, viuzze moresche", type: "free", confirmed: true, estimatedCost: 2, mapsQuery: "Frigiliana pueblo blanco" },
-      { time: "12:00", icon: "🚗", name: "Frigiliana → Nerja", type: "trasporto", segmentIdx: 3 },
+      { time: "12:00", icon: "🚗", name: "Frigiliana → Nerja", type: "trasporto", segmentIdx: 4 },
       { time: "12:15", icon: "🌊", name: "Nerja – Balcón de Europa + Playa de Burriana", type: "free", confirmed: true, mapsQuery: "Balcon de Europa Nerja" },
       { time: "13:00", icon: "🍝", name: "Pranzo Nerja – chiringuito sul mare", type: "cibo", estimatedCost: 12 },
-      { time: "14:30", icon: "🚗", name: "Nerja → Malaga", type: "trasporto", segmentIdx: 4 },
+      { time: "14:30", icon: "🚗", name: "Nerja → Malaga", type: "trasporto", segmentIdx: 5 },
       { time: "16:00", icon: "🚶", name: "Malaga – Centro Histórico, Alcazaba", type: "ingresso", estimatedCost: 3, mapsQuery: "Alcazaba Malaga" },
       { time: "20:30", icon: "🍽️", name: "Cena Malaga – El Pimpi o Calle Granada", type: "cibo", estimatedCost: 15 },
     ],
@@ -82,11 +86,11 @@ const DAYS = [
     day: 5, date: "2026-04-29", label: "Mercoledì 29 Aprile", route: "Colomares → Caminito → Setenil → Ronda",
     activities: [
       { time: "08:30", icon: "🏰", name: "Castillo de Colomares – Benalmádena", type: "ingresso", estimatedCost: 3, mapsQuery: "Castillo de Colomares Benalmadena" },
-      { time: "10:00", icon: "🚗", name: "Colomares → Caminito del Rey", type: "trasporto", segmentIdx: 5 },
+      { time: "10:00", icon: "🚗", name: "Colomares → Caminito del Rey", type: "trasporto", segmentIdx: 6 },
       { time: "12:30", icon: "🧗", name: "Caminito del Rey – passerella nella gola", type: "ingresso", estimatedCost: 20, confirmed: true, payer: "Manu", realCost: 20, link: "https://www.caminitodelrey.info/en/tickets/my-tickets/pedido_id/727521", linkLabel: "🎟️ Prenotazione", mapsQuery: "Caminito del Rey" },
-      { time: "16:00", icon: "🚗", name: "Caminito del Rey → Setenil", type: "trasporto", segmentIdx: 6 },
+      { time: "16:00", icon: "🚗", name: "Caminito del Rey → Setenil", type: "trasporto", segmentIdx: 7 },
       { time: "17:00", icon: "🚶", name: "Setenil – case scavate nella roccia", type: "free", confirmed: true, mapsQuery: "Setenil de las Bodegas" },
-      { time: "18:00", icon: "🚗", name: "Setenil → Ronda", type: "trasporto", segmentIdx: 7 },
+      { time: "18:00", icon: "🚗", name: "Setenil → Ronda", type: "trasporto", segmentIdx: 8 },
       { time: "20:00", icon: "🌉", name: "Ronda – Puente Nuevo illuminato di notte", type: "free", confirmed: true, mapsQuery: "Puente Nuevo Ronda" },
       { time: "21:00", icon: "🍽️", name: "Cena Ronda", type: "cibo", estimatedCost: 15 },
     ],
@@ -96,7 +100,7 @@ const DAYS = [
     day: 6, date: "2026-04-30", label: "Giovedì 30 Aprile", route: "Ronda → Siviglia",
     activities: [
       { time: "09:00", icon: "🌉", name: "Ronda – Puente Nuevo + Tajo di Ronda (mattina)", type: "free", confirmed: true, mapsQuery: "Puente Nuevo Ronda" },
-      { time: "11:00", icon: "🚗", name: "Ronda → Siviglia (A-376)", type: "trasporto", segmentIdx: 8 },
+      { time: "11:00", icon: "🚗", name: "Ronda → Siviglia (A-376)", type: "trasporto", segmentIdx: 9 },
       { time: "16:00", icon: "🚶", name: "Plaza de España + Parque de María Luisa", type: "free", confirmed: true, mapsQuery: "Plaza de Espana Sevilla" },
       { time: "20:30", icon: "🍽️", name: "Cena Siviglia – tapas zona Triana", type: "cibo", estimatedCost: 15 },
     ],
@@ -126,7 +130,7 @@ const DAYS = [
   {
     day: 9, date: "2026-05-03", label: "Domenica 3 Maggio", route: "Siviglia → Cordoba",
     activities: [
-      { time: "09:00", icon: "🚗", name: "Siviglia → Cordoba (A-4)", type: "trasporto", segmentIdx: 9 },
+      { time: "09:00", icon: "🚗", name: "Siviglia → Cordoba (A-4)", type: "trasporto", segmentIdx: 10 },
       { time: "13:00", icon: "🚶", name: "Judería – quartiere ebraico + Sinagoga", type: "ingresso", estimatedCost: 3, confirmed: true, mapsQuery: "Juderia Cordoba" },
       { time: "14:00", icon: "🍝", name: "Pranzo – ristorante tipico cordobés", type: "cibo", estimatedCost: 12, note: "Specialità: salmorejo, rabo de toro" },
       { time: "15:00", icon: "🕌", name: "Mezquita-Catedral di Cordoba", type: "ingresso", estimatedCost: 32, realCost: 32, confirmed: true, payer: "Robi", link: "https://www.mezquita-cordoba.com/en/", linkLabel: "🎟️ Prenotazione", mapsQuery: "Mezquita Catedral Cordoba" },
@@ -138,7 +142,7 @@ const DAYS = [
   {
     day: 10, date: "2026-05-04", label: "Lunedì 4 Maggio", route: "Cordoba → Valencia",
     activities: [
-      { time: "09:00", icon: "🚗", name: "Cordoba → Valencia (A-4 + A-3)", type: "trasporto", segmentIdx: 10 },
+      { time: "09:00", icon: "🚗", name: "Cordoba → Valencia (A-4 + A-3)", type: "trasporto", segmentIdx: 11 },
       { time: "14:00", icon: "🚶", name: "Ciudad de las Artes y Ciencias (esterno)", type: "free", confirmed: true, note: "Architettura Calatrava – gratis all'esterno", mapsQuery: "Ciudad de las Artes y Ciencias Valencia" },
       { time: "16:00", icon: "🚶", name: "Barrio del Carmen", type: "free", mapsQuery: "Barrio del Carmen Valencia" },
       { time: "20:30", icon: "🍽️", name: "Cena Valencia – PAELLA autentica!", type: "cibo", estimatedCost: 20, note: "Momento clou del rientro!" },
@@ -149,7 +153,7 @@ const DAYS = [
     day: 11, date: "2026-05-05", label: "Martedì 5 Maggio", route: "Valencia – Rientro",
     activities: [
       { time: "–", icon: "✈️", name: "Manu & Robi: volo Valencia → Casa", type: "trasporto" },
-      { time: "–", icon: "🚗", name: "Federico & Giulia: Valencia → Barcellona (20€/p)", type: "trasporto", estimatedCost: 20, note: "Controllare orari restituzione auto" },
+      { time: "15:02", icon: "🚂", name: "Federico & Giulia: Treno Valencia → Barcellona", type: "trasporto", segmentIdx: null, note: "Arrivo Barcellona 18:19" },
     ],
     hotel: null
   },
@@ -167,9 +171,13 @@ const DEFAULT_EXPENSES = [
   { id: "e9",  desc: "Alloggio Siviglia – 3 notti (Booking)", amount: 384, paidBy: "Robi", participants: PEOPLE, category: "alloggio", date: "2026-04-30", preloaded: true },
   { id: "e10", desc: "Mezquita-Catedral Cordoba x4", amount: 128, paidBy: "Robi", participants: PEOPLE, category: "ingresso", date: "2026-05-03", preloaded: true },
   { id: "e11", desc: "Alloggio Cordoba (Booking)", amount: 92, paidBy: "Robi", participants: PEOPLE, category: "alloggio", date: "2026-05-03", preloaded: true },
+  { id: "e12", desc: "Treno Barcellona→Valencia andata (Federico+Giulia)", amount: 39.30, paidBy: "Federico", participants: ["Federico","Giulia"], category: "trasporto", date: "2026-04-25", preloaded: true },
+  { id: "e13", desc: "Treno Valencia→Barcellona ritorno (Federico+Giulia)", amount: 33.60, paidBy: "Federico", participants: ["Federico","Giulia"], category: "trasporto", date: "2026-05-05", preloaded: true },
 ];
 
-const CAT_ICONS  = { alloggio: "🏨", trasporto: "🚗", cibo: "🍽️", ingresso: "🎟️", altro: "📦" };
+const STORAGE_VERSION = "v3";
+
+ alloggio: "🏨", trasporto: "🚗", cibo: "🍽️", ingresso: "🎟️", altro: "📦" };
 const TYPE_BADGE = {
   free:      { cls: "badge-green",  label: "Gratis" },
   ingresso:  { cls: "badge-orange", label: "Ingresso" },
@@ -195,10 +203,22 @@ function initDefaultSegments() {
       editState.segments[i] = { method: "car", departureTime: "", arrivalTime: "", cost: 0, paidBy: "Federico", participants: [...PEOPLE] };
     }
   }
+  // Segment 0: Barcelona→Valencia train (Federico+Giulia)
+  if (!editState.segments[0] || editState.segments[0].method === "car") {
+    editState.segments[0] = { method: "train", departureTime: "08:15", arrivalTime: "11:20", cost: 39.30, paidBy: "Federico", participants: ["Federico","Giulia"] };
+  }
 }
 
 function loadExpenses() {
-  try { const s = localStorage.getItem("andalusia2026_expenses"); expenses = s ? JSON.parse(s) : [...DEFAULT_EXPENSES]; }
+  try {
+    if (localStorage.getItem("andalusia2026_version") !== STORAGE_VERSION) {
+      localStorage.removeItem("andalusia2026_expenses");
+      localStorage.removeItem("andalusia2026_edits");
+      localStorage.setItem("andalusia2026_version", STORAGE_VERSION);
+    }
+    const s = localStorage.getItem("andalusia2026_expenses");
+    expenses = s ? JSON.parse(s) : [...DEFAULT_EXPENSES];
+  }
   catch { expenses = [...DEFAULT_EXPENSES]; }
 }
 function saveExpenses() { localStorage.setItem("andalusia2026_expenses", JSON.stringify(expenses)); }
