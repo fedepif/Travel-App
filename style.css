@@ -404,6 +404,11 @@ input:focus, select:focus { border-color: var(--primary); }
   text-align: center;
 }
 .weather-chip b { font-weight: 700; }
+.temp-chart-wrap {
+  margin: 8px 0 4px;
+  border-top: 1px solid rgba(200,88,26,.12);
+  padding-top: 6px;
+}
 .day-total {
   font-size: .72rem;
   font-weight: 700;

@@ -497,7 +497,7 @@ async function fetchWeather(dayNum) {
   const loc = getDayLocation(dayNum);
   const day = DAYS.find(d => d.day === dayNum);
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=Europe/Madrid&start_date=${day.date}&end_date=${day.date}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&hourly=temperature_2m&timezone=Europe/Madrid&start_date=${day.date}&end_date=${day.date}`;
     const r = await fetch(url);
     const data = await r.json();
     if (data.daily?.weathercode?.length) {
@@ -506,6 +506,7 @@ async function fetchWeather(dayNum) {
         min: data.daily.temperature_2m_min[0],
         precip: data.daily.precipitation_sum[0],
         code: data.daily.weathercode[0],
+        hourly: data.hourly?.temperature_2m || [],
       };
     } else {
       weatherCache[dayNum] = null;
@@ -514,14 +515,57 @@ async function fetchWeather(dayNum) {
   return weatherCache[dayNum];
 }
 
+function buildTempChart(dayNum, hourlyTemps) {
+  const n = hourlyTemps.length; // 24
+  if (n < 2) return "";
+  const W = 300, H = 76;
+  const pL = 6, pR = 6, pT = 16, pB = 18;
+  const iW = W - pL - pR, iH = H - pT - pB;
+  const minT = Math.floor(Math.min(...hourlyTemps));
+  const maxT = Math.ceil(Math.max(...hourlyTemps));
+  const range = maxT - minT || 1;
+  const px = i => pL + (i / (n - 1)) * iW;
+  const py = t => pT + (1 - (t - minT) / range) * iH;
+  const pathD = hourlyTemps.map((t, i) => `${i === 0 ? "M" : "L"}${px(i).toFixed(1)},${py(t).toFixed(1)}`).join(" ");
+  const areaD = `${pathD} L${px(n-1).toFixed(1)},${pT + iH} L${px(0).toFixed(1)},${pT + iH} Z`;
+  const gid = `tg${dayNum}`;
+  const labels = [6, 12, 18];
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:76px;display:block">
+    <defs>
+      <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#C8581A" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="#C8581A" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    <path d="${areaD}" fill="url(#${gid})"/>
+    <path d="${pathD}" fill="none" stroke="#C8581A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${labels.map(h => `
+      <line x1="${px(h).toFixed(1)}" y1="${pT}" x2="${px(h).toFixed(1)}" y2="${pT+iH}" stroke="rgba(0,0,0,.08)" stroke-width="1" stroke-dasharray="3 2"/>
+      <circle cx="${px(h).toFixed(1)}" cy="${py(hourlyTemps[h]).toFixed(1)}" r="2.5" fill="#C8581A"/>
+      <text x="${px(h).toFixed(1)}" y="${py(hourlyTemps[h]) - 5}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#C8581A">${Math.round(hourlyTemps[h])}°</text>
+      <text x="${px(h).toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="8" fill="#9B7B6B">${h}:00</text>
+    `).join("")}
+    <text x="${px(0).toFixed(1)}" y="${H - 4}" text-anchor="start" font-size="8" fill="#9B7B6B">0:00</text>
+    <text x="${px(n-1).toFixed(1)}" y="${H - 4}" text-anchor="end" font-size="8" fill="#9B7B6B">23:00</text>
+  </svg>`;
+}
+
 async function loadAllWeather() {
   await Promise.all(DAYS.map(async day => {
     const w = await fetchWeather(day.day);
-    const el = document.getElementById(`weather-${day.day}`);
-    if (!el) return;
-    if (!w) { el.textContent = ""; return; }
-    const precip = w.precip > 0.2 ? ` 💧${Math.round(w.precip)}mm` : "";
-    el.innerHTML = `${wmoIcon(w.code)} <b>${Math.round(w.max)}°</b>/${Math.round(w.min)}°${precip}`;
+    const chip = document.getElementById(`weather-${day.day}`);
+    const chart = document.getElementById(`chart-${day.day}`);
+    if (!w) {
+      if (chip) chip.textContent = "";
+      return;
+    }
+    if (chip) {
+      const precip = w.precip > 0.2 ? ` 💧${Math.round(w.precip)}mm` : "";
+      chip.innerHTML = `${wmoIcon(w.code)} <b>${Math.round(w.max)}°</b>/${Math.round(w.min)}°${precip}`;
+    }
+    if (chart && w.hourly?.length) {
+      chart.innerHTML = buildTempChart(day.day, w.hourly);
+    }
   }));
 }
 
@@ -606,10 +650,22 @@ function renderItinerary() {
       body.appendChild(buildHotelRow(day));
     }
 
+    // Temperature chart
+    const chartDiv = document.createElement("div");
+    chartDiv.id = `chart-${day.day}`;
+    chartDiv.className = "temp-chart-wrap";
+    const cached = weatherCache[day.day];
+    if (cached?.hourly?.length) {
+      chartDiv.innerHTML = buildTempChart(day.day, cached.hourly);
+    }
+    body.appendChild(chartDiv);
+
     card.appendChild(header);
     card.appendChild(body);
     container.appendChild(card);
   });
+
+  loadAllWeather();
 }
 
 function buildActivityEl(day, act, aIdx) {
@@ -976,6 +1032,5 @@ async function init() {
   initMap();
   mapInitialized = true;
   subscribeRealtime();
-  loadAllWeather();
 }
 init();
