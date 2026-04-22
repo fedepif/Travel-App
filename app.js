@@ -175,7 +175,9 @@ const DEFAULT_EXPENSES = [
   { id: "e13", desc: "Treno Valencia→Barcellona ritorno (Federico+Giulia)", amount: 67.20, paidBy: "Federico", participants: ["Federico","Giulia"], category: "trasporto", date: "2026-05-05", preloaded: true },
 ];
 
-const STORAGE_VERSION = "v3";
+const SUPABASE_URL = "https://hoozewskouyfzrwekntn.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhvb3pld3Nrb3V5Znpyd2VrbnRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDkzOTAsImV4cCI6MjA5MjQyNTM5MH0.-PAj-o14s3jx_E2zjQmS4tqP5dc-giqIKruhB3uFceQ";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const CAT_ICONS  = { alloggio: "🏨", trasporto: "🚗", cibo: "🍽️", ingresso: "🎟️", altro: "📦" };
 const TYPE_BADGE = {
@@ -209,41 +211,114 @@ function initDefaultSegments() {
   }
 }
 
-function loadExpenses() {
-  try {
-    const s = localStorage.getItem("andalusia2026_expenses");
-    // Only user-added (non-preloaded) expenses are persisted; defaults always come from DEFAULT_EXPENSES
-    const userSaved = s ? JSON.parse(s).filter(e => !e.preloaded) : [];
-    // Skip preloaded defaults whose segment is already covered by a user-saved expense
-    const coveredSegs = new Set(userSaved.map(e => e.linkedSegmentIdx).filter(x => x != null));
-    const activeDefaults = DEFAULT_EXPENSES.filter(e => e.linkedSegmentIdx == null || !coveredSegs.has(e.linkedSegmentIdx));
-    expenses = [...activeDefaults, ...userSaved];
-  }
-  catch { expenses = [...DEFAULT_EXPENSES]; }
-}
-function saveExpenses() {
-  // Only persist user-added expenses; preloaded ones are always rebuilt from DEFAULT_EXPENSES
-  localStorage.setItem("andalusia2026_expenses", JSON.stringify(expenses.filter(e => !e.preloaded)));
+function rowToExpense(row) {
+  return {
+    id: row.id, desc: row.description, amount: parseFloat(row.amount),
+    paidBy: row.paid_by, participants: row.participants,
+    category: row.category, date: row.date,
+    linkedSegmentIdx: row.linked_segment_idx, preloaded: false,
+  };
 }
 
-function loadEditState() {
-  try {
-    const s = localStorage.getItem("andalusia2026_edits");
-    if (s) {
-      const saved = JSON.parse(s);
-      // Version bump: reset only segments (preserve hotel addresses)
-      if (saved._version !== STORAGE_VERSION) {
-        editState = { segments: {}, hotels: saved.hotels || {} };
-      } else {
-        editState = saved;
-      }
-    }
-  }
-  catch {}
-  initDefaultSegments();
+function expenseToRow(exp) {
+  return {
+    id: exp.id, description: exp.desc, amount: exp.amount,
+    paid_by: exp.paidBy, participants: exp.participants,
+    category: exp.category, date: exp.date,
+    linked_segment_idx: exp.linkedSegmentIdx ?? null,
+  };
 }
-function saveEditState() {
-  localStorage.setItem("andalusia2026_edits", JSON.stringify({ ...editState, _version: STORAGE_VERSION }));
+
+function mergeExpenses(userRows) {
+  const coveredSegs = new Set(userRows.map(e => e.linkedSegmentIdx).filter(x => x != null));
+  const activeDefaults = DEFAULT_EXPENSES.filter(e => e.linkedSegmentIdx == null || !coveredSegs.has(e.linkedSegmentIdx));
+  return [...activeDefaults, ...userRows];
+}
+
+async function loadFromDB() {
+  try {
+    const [segsRes, hotelsRes, expRes] = await Promise.all([
+      db.from("segments").select("*"),
+      db.from("hotels").select("*"),
+      db.from("expenses").select("*"),
+    ]);
+
+    initDefaultSegments();
+
+    (segsRes.data || []).forEach(row => {
+      editState.segments[row.segment_idx] = {
+        method: row.method, departureTime: row.departure_time,
+        arrivalTime: row.arrival_time, cost: parseFloat(row.cost),
+        paidBy: row.paid_by, participants: row.participants, _customized: row.customized,
+      };
+    });
+
+    (hotelsRes.data || []).forEach(row => {
+      editState.hotels[`day_${row.day}`] = { address: row.address, lat: row.lat, lng: row.lng };
+    });
+
+    expenses = mergeExpenses((expRes.data || []).map(rowToExpense));
+  } catch (err) {
+    console.error("DB load error:", err);
+    initDefaultSegments();
+    expenses = [...DEFAULT_EXPENSES];
+  }
+}
+
+async function upsertExpenseToDB(exp) {
+  await db.from("expenses").upsert(expenseToRow(exp));
+}
+
+async function deleteExpenseFromDB(id) {
+  await db.from("expenses").delete().eq("id", id);
+}
+
+async function saveSegmentToDB(segIdx) {
+  const seg = editState.segments[segIdx];
+  await db.from("segments").upsert({
+    segment_idx: segIdx, method: seg.method,
+    departure_time: seg.departureTime || "", arrival_time: seg.arrivalTime || "",
+    cost: seg.cost || 0, paid_by: seg.paidBy || "Federico",
+    participants: seg.participants || PEOPLE, customized: seg._customized || false,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+async function saveHotelToDB(day, data) {
+  await db.from("hotels").upsert({
+    day, address: data.address, lat: data.lat, lng: data.lng,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+function subscribeRealtime() {
+  db.channel("travel-sync")
+    .on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, async () => {
+      const { data } = await db.from("expenses").select("*");
+      expenses = mergeExpenses((data || []).map(rowToExpense));
+      renderExpenses();
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "segments" }, (payload) => {
+      const row = payload.new;
+      if (!row) return;
+      editState.segments[row.segment_idx] = {
+        method: row.method, departureTime: row.departure_time, arrivalTime: row.arrival_time,
+        cost: parseFloat(row.cost), paidBy: row.paid_by, participants: row.participants, _customized: row.customized,
+      };
+      renderItinerary();
+      if (mapInstance) drawSegment(mapInstance, row.segment_idx);
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "hotels" }, (payload) => {
+      const row = payload.new;
+      if (!row) return;
+      editState.hotels[`day_${row.day}`] = { address: row.address, lat: row.lat, lng: row.lng };
+      renderItinerary();
+      if (mapInstance) {
+        const dayData = DAYS.find(d => d.day === row.day);
+        if (dayData) refreshHotelMarker(mapInstance, dayData);
+      }
+    })
+    .subscribe();
 }
 
 /* ═══════════════════════════════════════════════════
@@ -604,7 +679,7 @@ function toggleTransportForm(li, segIdx, dayNum) {
   li.appendChild(form);
 
   form.querySelector(".btn-tf-cancel").addEventListener("click", () => form.remove());
-  form.querySelector(".btn-tf-save").addEventListener("click", () => {
+  form.querySelector(".btn-tf-save").addEventListener("click", async () => {
     const participants = [...form.querySelectorAll(".tf-part:checked")].map(c => c.value);
     if (!participants.length) { alert("Seleziona almeno una persona!"); return; }
 
@@ -617,26 +692,25 @@ function toggleTransportForm(li, segIdx, dayNum) {
       participants,
       _customized:   true,
     };
-    saveEditState();
+    await saveSegmentToDB(segIdx);
 
-    // Update expense entry for this segment (remove both seg_N and any linked preloaded default)
+    // Update expense: remove old entries for this segment, upsert new one if cost > 0
     const cost = editState.segments[segIdx].cost;
     const expId = `seg_${segIdx}`;
+    await db.from("expenses").delete().or(`id.eq.${expId},linked_segment_idx.eq.${segIdx}`);
     expenses = expenses.filter(e => e.id !== expId && e.linkedSegmentIdx !== segIdx);
     if (cost > 0) {
-      expenses.push({
-        id: expId,
-        linkedSegmentIdx: segIdx,
-        desc: `Trasporto: ${SEGMENT_LABELS[segIdx]}`,
-        amount: cost,
-        paidBy: editState.segments[segIdx].paidBy,
-        participants,
+      const newExp = {
+        id: expId, linkedSegmentIdx: segIdx,
+        desc: `Trasporto: ${SEGMENT_LABELS[segIdx]}`, amount: cost,
+        paidBy: editState.segments[segIdx].paidBy, participants,
         category: "trasporto",
         date: DAYS.find(d => d.day === SEGMENT_DAY[segIdx])?.date || "2026-04-25",
         preloaded: false,
-      });
+      };
+      await upsertExpenseToDB(newExp);
+      expenses.push(newExp);
     }
-    saveExpenses();
 
     // Redraw map segment if map is open
     if (mapInstance) drawSegment(mapInstance, segIdx);
@@ -725,7 +799,7 @@ function toggleHotelForm(container, day) {
     }
 
     editState.hotels[key] = { address, lat: coords.lat, lng: coords.lng };
-    saveEditState();
+    await saveHotelToDB(day.day, { address, lat: coords.lat, lng: coords.lng });
 
     // Refresh hotel marker on map
     if (mapInstance) refreshHotelMarker(mapInstance, day);
@@ -805,28 +879,32 @@ function renderExpenses() {
   }).join("") || `<div style="color:#7A5C4A;font-size:.88rem">Nessuna spesa.</div>`;
 
   document.querySelectorAll(".exp-delete").forEach(btn => {
-    btn.addEventListener("click", () => {
-      expenses = expenses.filter(e => e.id !== btn.dataset.id);
-      saveExpenses(); renderExpenses();
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.id;
+      expenses = expenses.filter(e => e.id !== id);
+      renderExpenses();
+      await deleteExpenseFromDB(id);
     });
   });
 }
 
-document.getElementById("expense-form").addEventListener("submit", e => {
+document.getElementById("expense-form").addEventListener("submit", async e => {
   e.preventDefault();
   const participants = [...document.querySelectorAll(".part-check:checked")].map(c => c.value);
   if (!participants.length) { alert("Seleziona almeno una persona!"); return; }
   const amount = parseFloat(document.getElementById("exp-amount").value);
   if (!amount || amount <= 0) return;
 
-  expenses.push({
+  const newExp = {
     id: "u" + Date.now(),
     desc: document.getElementById("exp-desc").value.trim(),
     amount, paidBy: document.getElementById("exp-payer").value,
     participants, category: document.getElementById("exp-category").value,
     date: document.getElementById("exp-date").value, preloaded: false,
-  });
-  saveExpenses(); renderExpenses();
+  };
+  expenses.push(newExp);
+  renderExpenses();
+  await upsertExpenseToDB(newExp);
   document.getElementById("exp-desc").value = "";
   document.getElementById("exp-amount").value = "";
   document.querySelectorAll(".part-check").forEach(c => c.checked = true);
@@ -835,9 +913,12 @@ document.getElementById("expense-form").addEventListener("submit", e => {
 /* ═══════════════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════════════ */
-loadExpenses();
-loadEditState();
-renderItinerary();
-renderExpenses();
-initMap();
-mapInitialized = true;
+async function init() {
+  await loadFromDB();
+  renderItinerary();
+  renderExpenses();
+  initMap();
+  mapInitialized = true;
+  subscribeRealtime();
+}
+init();
