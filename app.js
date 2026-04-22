@@ -177,7 +177,7 @@ const DEFAULT_EXPENSES = [
 
 const STORAGE_VERSION = "v3";
 
- alloggio: "🏨", trasporto: "🚗", cibo: "🍽️", ingresso: "🎟️", altro: "📦" };
+const CAT_ICONS  = { alloggio: "🏨", trasporto: "🚗", cibo: "🍽️", ingresso: "🎟️", altro: "📦" };
 const TYPE_BADGE = {
   free:      { cls: "badge-green",  label: "Gratis" },
   ingresso:  { cls: "badge-orange", label: "Ingresso" },
