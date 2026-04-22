@@ -385,6 +385,94 @@ input:focus, select:focus { border-color: var(--primary); }
 }
 .exp-delete:hover { color: var(--red); }
 
+/* ── TRANSPORT METHOD BADGES ── */
+.badge-method-car   { background: #FEF3E2; color: #C8581A; }
+.badge-method-train { background: #E3EEF8; color: #1A6DA8; }
+.badge-method-bus   { background: #E8F5EE; color: #2E7D52; }
+.badge-method-walk  { background: #F0EBE4; color: #7A5C4A; }
+.badge-method-ferry { background: #E0F4F5; color: #00838F; }
+
+/* ── DAILY TOTAL in day header ── */
+.day-total {
+  font-size: .72rem;
+  font-weight: 700;
+  background: rgba(255,255,255,.25);
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.day-header { background: var(--primary); }
+.day-header:hover { background: var(--primary-d) !important; }
+.day-date, .day-route { color: rgba(255,255,255,.9) !important; }
+.day-number { background: rgba(255,255,255,.25) !important; color: #fff !important; }
+.day-number.today { background: var(--accent) !important; color: var(--text) !important; }
+.day-toggle { color: rgba(255,255,255,.7) !important; }
+
+/* ── EDIT TRANSPORT BUTTON ── */
+.btn-edit-transport {
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(200,88,26,.3);
+  border-radius: 6px;
+  color: var(--primary);
+  font-size: .68rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  cursor: pointer;
+  transition: all .15s;
+  font-family: 'Inter', sans-serif;
+}
+.btn-edit-transport:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ── TRANSPORT INLINE FORM ── */
+.transport-form {
+  background: #FEF9F0;
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  width: 100%;
+}
+.tf-title { font-size: .75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: .4px; }
+.tf-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.tf-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 120px; }
+.tf-group label { font-size: .72rem; font-weight: 600; color: var(--text-2); }
+.tf-participants { display: flex; gap: 10px; flex-wrap: wrap; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.tf-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-tf-save {
+  background: var(--primary); color: #fff; border: none;
+  border-radius: 8px; padding: 8px 16px;
+  font-size: .85rem; font-weight: 600; cursor: pointer;
+  font-family: 'Inter', sans-serif; transition: background .15s;
+}
+.btn-tf-save:hover { background: var(--primary-d); }
+.btn-tf-cancel {
+  background: #fff; color: var(--text-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 14px;
+  font-size: .85rem; cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+.btn-tf-cancel:hover { background: #F0EBE4; }
+
+/* ── HOTEL ROW UPDATES ── */
+.hotel-info { display: flex; flex-direction: column; flex: 1; min-width: 120px; }
+.hotel-address { font-size: .7rem; color: var(--text-2); margin-top: 1px; }
+.btn-edit-hotel {
+  background: none; border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-2);
+  font-size: .68rem; font-weight: 500; padding: 2px 7px;
+  cursor: pointer; transition: all .15s;
+  font-family: 'Inter', sans-serif; white-space: nowrap;
+}
+.btn-edit-hotel:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+.hotel-form {
+  background: #FEF9F0; border-top: 1px solid var(--border);
+  padding: 10px 14px; display: flex; flex-direction: column; gap: 8px;
+  width: 100%;
+}
+
+/* ── MAP LEGEND UPDATES ── */
+.map-legend { gap: 6px !important; }
+
 /* Leaflet popup */
 .leaflet-popup-content-wrapper {
   border-radius: 10px !important;
