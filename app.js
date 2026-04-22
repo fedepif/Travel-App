@@ -643,22 +643,24 @@ function renderItinerary() {
       list.appendChild(li);
     });
 
-    body.appendChild(list);
-
-    // Hotel row
-    if (day.hotel) {
-      body.appendChild(buildHotelRow(day));
-    }
-
-    // Temperature chart
+    // Temperature chart — at the top of the body so it's immediately visible
     const chartDiv = document.createElement("div");
     chartDiv.id = `chart-${day.day}`;
     chartDiv.className = "temp-chart-wrap";
     const cached = weatherCache[day.day];
     if (cached?.hourly?.length) {
       chartDiv.innerHTML = buildTempChart(day.day, cached.hourly);
+    } else {
+      chartDiv.innerHTML = `<div class="temp-chart-placeholder">⏳ caricamento meteo...</div>`;
     }
     body.appendChild(chartDiv);
+
+    body.appendChild(list);
+
+    // Hotel row
+    if (day.hotel) {
+      body.appendChild(buildHotelRow(day));
+    }
 
     card.appendChild(header);
     card.appendChild(body);
