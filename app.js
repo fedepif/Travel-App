@@ -262,8 +262,8 @@ async function fetchOSRMRoute(from, to) {
 function bezierCurvePoints(from, to, n = 30) {
   // Quadratic bezier with perpendicular midpoint offset for train routes
   const mid = {
-    lat: (from.lat + to.lat) / 2 + (to.lng - from.lng) * 0.12,
-    lng: (from.lng + to.lng) / 2 - (to.lat - from.lat) * 0.12,
+    lat: (from.lat + to.lat) / 2 - (to.lng - from.lng) * 0.08,
+    lng: (from.lng + to.lng) / 2 + (to.lat - from.lat) * 0.08,
   };
   const pts = [];
   for (let i = 0; i <= n; i++) {
