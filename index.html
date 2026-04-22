@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Road Trip Andalusia 2026</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Leaflet Routing Machine -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="header-left">
+        <span class="header-flag">🇪🇸</span>
+        <div>
+          <h1 class="header-title">Road Trip Andalusia</h1>
+          <p class="header-subtitle">25 Aprile – 5 Maggio 2026 &nbsp;·&nbsp; 4 persone &nbsp;·&nbsp; 11 giorni</p>
+        </div>
+      </div>
+      <div class="header-avatars">
+        <span class="avatar" title="Federico">F</span>
+        <span class="avatar" title="Manu">M</span>
+        <span class="avatar" title="Robi">R</span>
+        <span class="avatar" title="Giulia">G</span>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="map">🗺️ Mappa</button>
+      <button class="tab-btn" data-tab="itinerary">📅 Itinerario</button>
+      <button class="tab-btn" data-tab="expenses">💶 Spese</button>
+    </nav>
+  </header>
+
+  <div class="app-body">
+
+  <!-- MAP TAB -->
+  <div id="tab-map" class="tab-content active">
+    <div id="map"></div>
+    <div class="map-legend">
+      <span class="legend-item"><span class="dot dot-stop"></span> Tappa</span>
+      <span class="legend-item"><span class="dot dot-hotel"></span> Alloggio</span>
+      <span class="legend-item"><span class="dot dot-poi"></span> Punto di interesse</span>
+    </div>
+  </div>
+
+  <!-- ITINERARY TAB -->
+  <div id="tab-itinerary" class="tab-content">
+    <div class="itinerary-container">
+      <div id="itinerary-list"></div>
+    </div>
+  </div>
+
+  <!-- EXPENSES TAB -->
+  <div id="tab-expenses" class="tab-content">
+    <div class="expenses-container">
+
+      <!-- BALANCE SUMMARY -->
+      <section class="expense-section">
+        <h2 class="section-title">Riepilogo Saldi</h2>
+        <div id="balance-cards" class="balance-grid"></div>
+      </section>
+
+      <!-- SETTLEMENT -->
+      <section class="expense-section">
+        <h2 class="section-title">Come Saldare</h2>
+        <div id="settlement-list" class="settlement-list"></div>
+      </section>
+
+      <!-- ADD EXPENSE -->
+      <section class="expense-section">
+        <h2 class="section-title">Aggiungi Spesa</h2>
+        <form id="expense-form" class="expense-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Descrizione</label>
+              <input type="text" id="exp-desc" placeholder="es. Cena a Siviglia" required />
+            </div>
+            <div class="form-group form-group--small">
+              <label>Importo (€)</label>
+              <input type="number" id="exp-amount" step="0.01" min="0.01" placeholder="0.00" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Pagato da</label>
+              <select id="exp-payer">
+                <option value="Federico">Federico</option>
+                <option value="Manu">Manu</option>
+                <option value="Robi">Robi</option>
+                <option value="Giulia">Giulia</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Categoria</label>
+              <select id="exp-category">
+                <option value="alloggio">🏨 Alloggio</option>
+                <option value="trasporto">🚗 Trasporto</option>
+                <option value="cibo">🍽️ Cibo</option>
+                <option value="ingresso">🎟️ Ingresso</option>
+                <option value="altro">📦 Altro</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Data</label>
+              <input type="date" id="exp-date" value="2026-04-25" min="2026-04-25" max="2026-05-05" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Dividi tra</label>
+            <div class="participants-check">
+              <label class="check-label"><input type="checkbox" class="part-check" value="Federico" checked /> Federico</label>
+              <label class="check-label"><input type="checkbox" class="part-check" value="Manu" checked /> Manu</label>
+              <label class="check-label"><input type="checkbox" class="part-check" value="Robi" checked /> Robi</label>
+              <label class="check-label"><input type="checkbox" class="part-check" value="Giulia" checked /> Giulia</label>
+            </div>
+          </div>
+          <button type="submit" class="btn-primary">+ Aggiungi Spesa</button>
+        </form>
+      </section>
+
+      <!-- EXPENSES LIST -->
+      <section class="expense-section">
+        <h2 class="section-title">Tutte le Spese</h2>
+        <div id="expenses-list" class="expenses-list"></div>
+      </section>
+
+    </div>
+  </div>
+
+  </div><!-- /.app-body -->
+  <script src="app.js"></script>
+</body>
+</html>
